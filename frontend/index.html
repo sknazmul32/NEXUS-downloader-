@@ -1114,20 +1114,74 @@ const formats_video = [
   { label:'Audio HQ', ext:'FLAC', size:'210 MB' },
 ];
 
-/* ====== ANALYZE URL ====== */
-function analyzeURL() {
-  const url = document.getElementById('url-input').value.trim();
-  if (!url) { showToast('⚠ No URL detected in input buffer'); return; }
-  addLog(`Scanning URL: ${url.slice(0,50)}…`, 'info');
-  addLog('Initiating DNS resolution…', 'info');
-  setTimeout(() => addLog('TLS handshake OK — endpoint verified', 'data'), 400);
-  setTimeout(() => addLog(`Platform fingerprint match: ${activePlatform.toUpperCase()}`, 'data'), 800);
-  setTimeout(() => addLog('Extracting media manifest…', 'info'), 1100);
-  setTimeout(() => {
-    addLog('Stream metadata decoded — 7 formats available', 'info');
-    renderResult();
-    showToast('✓ Media analyzed — select format to extract');
-  }, 1600);
+/* ====== ANALYZE URL (REAL BACKEND INTEGRATION) ====== */
+async function analyzeUrl() {
+    const url = document.getElementById('url-input').value.trim();
+    if (!url) { showToast('⚠️ No URL detected in input buffer'); return; }
+    
+    addLog(`Scanning URL: ${url.slice(0, 50)}...`, 'info');
+    addLog('Initiating DNS resolution...', 'info');
+    
+    // সাইবারপাঙ্ক স্টাইলের ডামি কুল টাইমিং নোটিফিকেশন লগে রাখা হলো
+    setTimeout(() => addLog('TLS handshake OK 🛡️ endpoint verified', 'data'), 400);
+    setTimeout(() => addLog(`Platform fingerprint match: ${activePlatform.toUpperCase()}`, 'data'), 800);
+    setTimeout(() => addLog('Extracting media manifest...', 'info'), 1100);
+    
+    try {
+        // Render লাইভ সার্ভার অথবা লোকালহোস্টের ব্যাকএন্ড এপিআই-তে রিয়েল হিট
+        const response = await fetch('/api/download', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: url })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            addLog('Stream metadata decoded 📡 Formats loaded successfully', 'info');
+            
+            // আসল ডাউনলোড বাটন তৈরি করার লজিক (ফেক ডেটা ওভাররাইট করবে)
+            const streamContainer = document.getElementById('detected-streams') || document.querySelector('.detected-streams-list'); // 👈 বাটন যেখানে জমা হয় সেই সেকশন
+            if (streamContainer) {
+                streamContainer.innerHTML = ''; // পুরোনো ফেক বাটনগুলো মুছে ফেলা
+                
+                data.formats.forEach(format => {
+                    const btn = document.createElement('button');
+                    btn.className = 'stream-btn btn-neon'; // সাইবারপাঙ্ক নিয়ন স্টাইল ক্লাস
+                    btn.style.width = '100%';
+                    btn.style.marginBottom = '10px';
+                    btn.innerHTML = `<span>DOWNLOAD ${format.quality.toUpperCase()}</span> <span class="badge" style="background:#00f0ff;color:#000;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:bold;margin-left:10px;">${format.ext.toUpperCase()}</span>`;
+                    
+                    // বাটনে ক্লিক করলেই সরাসরি ডাউনলোড ট্রিগার হবে
+                    btn.onclick = (e) => {
+                        e.preventDefault();
+                        const a = document.createElement('a');
+                        a.href = format.url;
+                        a.target = '_blank';
+                        a.setAttribute('download', '');
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    };
+                    streamContainer.appendChild(btn);
+                });
+            }
+            
+            // দৈনিক লিমিট কতটি বাকি আছে তা লগে রিয়েল-টাইমে দেখানো
+            if(data.downloads_left !== undefined) {
+                addLog(`SYSTEM INFO: ${data.downloads_left}/10 free downloads remaining for today.`, 'warning');
+            }
+            
+            showToast('✅ Media analyzed 🔗 Select format to extract');
+            
+        } else {
+            addLog(`EXTRACTION FAILED: ${data.error || 'Unknown network anomalies'}`, 'error');
+            showToast('❌ Extraction Failed');
+        }
+    } catch (error) {
+        addLog("CRITICAL ERROR: Mainframe connection refused by backend!", "error");
+        showToast('❌ Mainframe Connection Error');
+    }
 }
 
 function renderResult() {
