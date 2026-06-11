@@ -62,7 +62,7 @@ def get_client_ip(request: Request) -> str:
 def is_paid(token: str) -> bool:
     return token in paid_users
 
-def check_rate_limit(ip: str, token: str) -> tuple[bool, int]:
+def check_rate_limit(ip: str, token: str):
     """Returns (allowed, remaining)"""
     if is_paid(token):
         return True, 999
