@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: nexus-downloader
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: MOYASAR_SECRET_KEY
+        sync: false
+    disk:
+      name: downloads
+      mountPath: /downloads
+      sizeGB: 1
