@@ -116,16 +116,15 @@ async def analyze(req: DownloadRequest, request: Request):
     """Fetch metadata without downloading"""
     ip = get_client_ip(request)
     allowed, remaining = check_rate_limit(ip, req.user_token)
-    if not allowed:
-        raise HTTPException(
-            status_code=429,
-            detail={
-                "error": "DAILY_LIMIT_REACHED",
-                "message": f"Free limit of {FREE_LIMIT_PER_DAY} downloads/day reached.",
-                "upgrade": True
-            }
-        )
-    ydl_opts = {"quiet": True, "no_warnings": True, "skip_download": True}
+    ydl_opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "skip_download": True,
+        "http_headers": {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9"
+        }
+    }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(req.url, download=False)
