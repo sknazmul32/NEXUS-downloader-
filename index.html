@@ -582,6 +582,39 @@ h1 {
 @keyframes rspin { from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
 .rsweep { transform-origin:32px 32px; animation:rspin 4s linear infinite; }
 
+
+/* ══ WORKER SETUP MODAL ══ */
+#worker-setup-modal {
+  position: fixed; inset: 0;
+  background: rgba(5,5,8,0.94);
+  z-index: 300;
+  display: none;
+  align-items: center; justify-content: center;
+  padding: 20px;
+}
+.setup-box {
+  background: var(--panel);
+  border: 1px solid var(--cyan);
+  border-radius: 12px;
+  padding: 32px;
+  max-width: 560px; width: 100%;
+  box-shadow: var(--glow-cyan);
+}
+.setup-title { font-family:'Orbitron',monospace; font-size:18px; font-weight:700; color:var(--cyan); margin-bottom:6px; }
+.setup-sub { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--dim); letter-spacing:.2em; margin-bottom:20px; }
+.setup-steps { list-style:none; margin-bottom:20px; }
+.setup-steps li { font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--text); padding:7px 0; border-bottom:1px solid rgba(0,200,255,.07); display:flex; gap:10px; align-items:flex-start; }
+.step-num { color:var(--cyan); flex-shrink:0; font-weight:bold; }
+.setup-steps a { color:var(--cyan); }
+.setup-input-row { display:flex; gap:10px; margin-bottom:14px; }
+.setup-input-row input { flex:1; background:rgba(0,5,15,.85); border:1px solid var(--border); border-radius:6px; padding:12px 14px; font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--text); outline:none; }
+.setup-input-row input:focus { border-color:var(--cyan); }
+.setup-input-row input::placeholder { color:var(--dim); }
+.setup-save-btn { background:rgba(0,200,255,.12); border:1px solid var(--cyan); border-radius:6px; padding:0 20px; font-family:'Orbitron',monospace; font-size:11px; font-weight:700; color:var(--cyan); cursor:pointer; letter-spacing:.1em; transition:all .2s; white-space:nowrap; }
+.setup-save-btn:hover { box-shadow:var(--glow-cyan); }
+.setup-note { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--dim); }
+.setup-note a { color:var(--green); }
+
 /* ══ TOAST ══ */
 #toast {
   position:fixed; bottom:22px; left:50%;
@@ -797,6 +830,29 @@ h1 {
   </div><!-- /main -->
 </div><!-- /page -->
 
+
+<!-- ══ WORKER SETUP MODAL ══ -->
+<div id="worker-setup-modal">
+  <div class="setup-box">
+    <div class="setup-title">⚙ ONE-TIME WORKER SETUP</div>
+    <div class="setup-sub">// FREE CLOUDFLARE PROXY — 5 MINUTES TO DEPLOY</div>
+    <ol class="setup-steps">
+      <li><span class="step-num">1.</span><span>Go to <a href="https://workers.cloudflare.com" target="_blank">workers.cloudflare.com</a> → Sign up FREE (no credit card)</span></li>
+      <li><span class="step-num">2.</span><span>Click <b style="color:var(--cyan)">Create Worker</b> → paste the contents of <b style="color:var(--green)">worker.js</b> → <b>Deploy</b></span></li>
+      <li><span class="step-num">3.</span><span>Copy your worker URL (e.g. <code style="color:var(--yellow)">https://nexus-proxy.yourname.workers.dev</code>)</span></li>
+      <li><span class="step-num">4.</span><span>Paste it below and click SAVE — done! ✅</span></li>
+    </ol>
+    <div class="setup-input-row">
+      <input id="worker-url-input" type="text" placeholder="https://nexus-proxy.yourname.workers.dev">
+      <button class="setup-save-btn" onclick="saveWorkerUrl()">SAVE</button>
+    </div>
+    <div class="setup-note">
+      📦 Download <a href="worker.js" download>worker.js</a> from your project files &nbsp;|&nbsp;
+      Cloudflare free tier: 100,000 requests/day
+    </div>
+  </div>
+</div>
+
 <!-- RADAR -->
 <div class="radar-wrap">
   <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -827,38 +883,45 @@ h1 {
    Cobalt is free & open-source: cobalt.tools
 ══════════════════════════════════════════════ */
 
-// ── Cobalt Public Instances (CORS-enabled, free) ──
-// Full list: https://instances.cobalt.tools
-const COBALT_INSTANCES = [
-  'https://cobalt.api.timelessnesses.me',
-  'https://cobalt.tig.sh',
-  'https://cobalt.imput.net',
-  'https://co.eepy.gay',
-  'https://cobalt.synth.zip',
-];
+// ── NEXUS Proxy Worker URL ──
+// After deploying worker.js to Cloudflare, paste your worker URL below:
+// Example: https://nexus-proxy.YOUR-NAME.workers.dev
+let WORKER_URL = localStorage.getItem('nexus_worker_url') || '';
 
 async function cobaltFetch(url, quality = '1080') {
-  let lastError = '';
-  for (const instance of COBALT_INSTANCES) {
-    try {
-      addLog(`🔵 Trying instance: ${instance.replace('https://','').split('/')[0]}…`, 'info');
-      const res = await fetch(`${instance}/api/json`, {
-        method: 'POST',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, vQuality: quality, filenamePattern: 'classic' }),
-        signal: AbortSignal.timeout(12000)
-      });
-      if (!res.ok) { lastError = `HTTP ${res.status}`; continue; }
-      const data = await res.json();
-      if (data.status === 'error') { lastError = data.text || data.error?.code || 'API error'; continue; }
-      addLog(`🟢 Instance responded: ${instance.replace('https://','').split('/')[0]}`, 'data');
-      return data;
-    } catch (e) {
-      lastError = e.message;
-      addLog(`🟡 Instance failed: ${e.message.slice(0,50)}`, 'warn');
-    }
+  if (!WORKER_URL) {
+    // Show setup modal if worker not configured
+    showWorkerSetup();
+    throw new Error('Worker URL not configured — see setup instructions');
   }
-  throw new Error(`All instances failed. Last error: ${lastError}`);
+  addLog(`🔵 Connecting to NEXUS proxy worker…`, 'info');
+  const res = await fetch(`${WORKER_URL}/api`, {
+    method: 'POST',
+    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, vQuality: quality, filenamePattern: 'classic' }),
+    signal: AbortSignal.timeout(20000)
+  });
+  if (!res.ok) throw new Error(`Worker returned HTTP ${res.status}`);
+  const data = await res.json();
+  if (data.status === 'error') throw new Error(data.text || 'Cobalt extraction error');
+  addLog(`🟢 Worker responded via: ${data._instance || WORKER_URL}`, 'data');
+  return data;
+}
+
+function showWorkerSetup() {
+  document.getElementById('worker-setup-modal').style.display = 'flex';
+}
+
+function saveWorkerUrl() {
+  const val = document.getElementById('worker-url-input').value.trim();
+  if (!val.startsWith('https://')) {
+    showToast('⚠ URL must start with https://'); return;
+  }
+  WORKER_URL = val.endsWith('/') ? val.slice(0,-1) : val;
+  localStorage.setItem('nexus_worker_url', WORKER_URL);
+  document.getElementById('worker-setup-modal').style.display = 'none';
+  addLog(`✅ Worker URL saved: ${WORKER_URL}`, 'success');
+  showToast('✓ Worker configured — try again!');
 }
 
 // ── State ──
@@ -958,6 +1021,39 @@ function setBtnState(state, text) {
     btn.onclick = extractMedia;
   }
 }
+
+
+/* ══ WORKER SETUP MODAL ══ */
+#worker-setup-modal {
+  position: fixed; inset: 0;
+  background: rgba(5,5,8,0.94);
+  z-index: 300;
+  display: none;
+  align-items: center; justify-content: center;
+  padding: 20px;
+}
+.setup-box {
+  background: var(--panel);
+  border: 1px solid var(--cyan);
+  border-radius: 12px;
+  padding: 32px;
+  max-width: 560px; width: 100%;
+  box-shadow: var(--glow-cyan);
+}
+.setup-title { font-family:'Orbitron',monospace; font-size:18px; font-weight:700; color:var(--cyan); margin-bottom:6px; }
+.setup-sub { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--dim); letter-spacing:.2em; margin-bottom:20px; }
+.setup-steps { list-style:none; margin-bottom:20px; }
+.setup-steps li { font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--text); padding:7px 0; border-bottom:1px solid rgba(0,200,255,.07); display:flex; gap:10px; align-items:flex-start; }
+.step-num { color:var(--cyan); flex-shrink:0; font-weight:bold; }
+.setup-steps a { color:var(--cyan); }
+.setup-input-row { display:flex; gap:10px; margin-bottom:14px; }
+.setup-input-row input { flex:1; background:rgba(0,5,15,.85); border:1px solid var(--border); border-radius:6px; padding:12px 14px; font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--text); outline:none; }
+.setup-input-row input:focus { border-color:var(--cyan); }
+.setup-input-row input::placeholder { color:var(--dim); }
+.setup-save-btn { background:rgba(0,200,255,.12); border:1px solid var(--cyan); border-radius:6px; padding:0 20px; font-family:'Orbitron',monospace; font-size:11px; font-weight:700; color:var(--cyan); cursor:pointer; letter-spacing:.1em; transition:all .2s; white-space:nowrap; }
+.setup-save-btn:hover { box-shadow:var(--glow-cyan); }
+.setup-note { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--dim); }
+.setup-note a { color:var(--green); }
 
 /* ══ TOAST ══ */
 function showToast(msg) {
