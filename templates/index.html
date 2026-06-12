@@ -603,54 +603,47 @@ async function analyzeURL(){
   if(!url){ showToast('⚠ No URL in input buffer'); return; }
   addLog(`Scanning URL: ${url.slice(0,50)}…`,'info');
 
-  try {
-    const res = await fetch(`${API_BASE}/api/analyze`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({url, user_token: proToken})
-    });
-    const data = await res.json();
+    try {
+      const res = await fetch('https://cobalt.tools', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          url: url,
+          vQuality: document.getElementById('quality-select')?.value || "1080",
+          filenamePattern: "classic"
+        })
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok || data.status === 'error') {
+        addLog(`Error: ${data.text || 'Extraction failed'}`, 'error');
+        showToast('⚠ Extraction failed');
+        return;
+      }      
+   
+  showToast('✓ Media analyzed - click download');
 
-    if(!res.ok){
-      if(data.detail?.error === 'DAILY_LIMIT_REACHED'){
-        showToast('⚠ Daily limit reached — upgrade to Pro');
-        openModal(); return;
-      }
-      addLog(`Error: ${data.detail?.message || 'Unknown error'}`,'error'); return;
-    }
+  document.getElementById('result-title').textContent = data.filename || 'NEXUS Download File';
+  
+  const thumbEl = document.getElementById('result-thumb');
+  if (thumbEl) {
+    thumbEl.innerHTML = `<span style="font-size: 48px;">🎬</span>`; 
+  }
 
-    addLog(`Title: ${data.title}`,'data');
-    addLog(`Platform: ${data.platform} | Duration: ${data.duration}s`,'data');
-    addLog(`${data.formats?.length || 0} formats available`,'info');
-    renderResult(data);
-    remainingDownloads = data.remaining;
-    document.getElementById('dl-remaining').textContent = proToken ? '∞' : data.remaining;
-    showToast('✓ Media analyzed — select format');
-  } catch(e){
-    addLog('Backend offline — running in demo mode','warn');
-    renderFakeResult();
+  const extractBtn = document.getElementById('initiate-btn') || document.querySelector('.vpn-btn');
+  if (extractBtn && data.url) {
+    extractBtn.innerHTML = '📥 DOWNLOAD NOW';
+    extractBtn.style.background = 'linear-gradient(135deg, #00ff88, #00c8ff)';
+    extractBtn.onclick = function() {
+      window.open(data.url, '_blank');
+    };
   }
 }
 
-function renderResult(data){
-  document.getElementById('result-title').textContent = data.title || '—';
-  const thumbEl = document.getElementById('result-thumb');
-  if(data.thumbnail){ thumbEl.innerHTML=`<img src="${data.thumbnail}" alt="">`; }
-  else { thumbEl.textContent='▶'; }
-  document.getElementById('result-meta').innerHTML = `
-    <span class="meta-chip">${data.duration ? Math.floor(data.duration/60)+'m '+data.duration%60+'s' : '—'}</span>
-    <span class="meta-chip">${(data.view_count||0).toLocaleString()} views</span>
-    <span class="meta-chip">${data.uploader||'—'}</span>
-    <span class="meta-chip">${(data.platform||activePlatform).toUpperCase()}</span>
-  `;
-  const fmts = (data.formats||[]).filter(f=>f.label).slice(0,8);
-  document.getElementById('format-list').innerHTML = fmts.map(f=>
-    `<button class="format-btn" onclick="pickFormat('${f.format_id}','${f.ext}')">
-      <span class="q">${f.label}</span><span>.${f.ext.toUpperCase()}</span>
-     </button>`
-  ).join('') || '<span style="color:var(--text-dim);font-size:12px;font-family:\'Share Tech Mono\',monospace;">Click Download to fetch formats</span>';
-  document.getElementById('result-area').classList.add('visible');
-}
 
 function renderFakeResult(){
   const fakeData = {
