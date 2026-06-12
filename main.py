@@ -37,19 +37,21 @@ paid_users:   set  = set()       # store tokens of paid users
 pending_payments: dict = {}      # payment_id -> ip
 
 # ── Models ──────────────────────────────────────────────
+# Models
 class DownloadRequest(BaseModel):
     url: str
     quality: str = "1080p"
-    format: str  = "mp4"
+    format: str = "mp4"
     subtitles: bool = False
-    user_token: str = ""          # paid user token
+    user_token: str = ""           # paid user token
 
 class PaymentRequest(BaseModel):
     amount: int = PAID_PLAN_PRICE
     currency: str = "SAR"
-    description: str = "NEXUS Pro — Unlimited Downloads"
+    description: str = "NEXUS Pro Unlimited Downloads"
     callback_url: str
-    source: dict                  # Moyasar source object (card/applepay/stcpay)
+    source: dict                   # Moyasar source object (card/applepay/stcpay)
+
 
 # ── Helpers ─────────────────────────────────────────────
 def get_today() -> str:
