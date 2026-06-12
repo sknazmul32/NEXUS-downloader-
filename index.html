@@ -827,8 +827,39 @@ h1 {
    Cobalt is free & open-source: cobalt.tools
 ══════════════════════════════════════════════ */
 
-// ── Cobalt API Endpoint (public, free, no key needed) ──
-const COBALT_API = 'https://cobalt.tools/api/json';
+// ── Cobalt Public Instances (CORS-enabled, free) ──
+// Full list: https://instances.cobalt.tools
+const COBALT_INSTANCES = [
+  'https://cobalt.api.timelessnesses.me',
+  'https://cobalt.tig.sh',
+  'https://cobalt.imput.net',
+  'https://co.eepy.gay',
+  'https://cobalt.synth.zip',
+];
+
+async function cobaltFetch(url, quality = '1080') {
+  let lastError = '';
+  for (const instance of COBALT_INSTANCES) {
+    try {
+      addLog(`🔵 Trying instance: ${instance.replace('https://','').split('/')[0]}…`, 'info');
+      const res = await fetch(`${instance}/api/json`, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, vQuality: quality, filenamePattern: 'classic' }),
+        signal: AbortSignal.timeout(12000)
+      });
+      if (!res.ok) { lastError = `HTTP ${res.status}`; continue; }
+      const data = await res.json();
+      if (data.status === 'error') { lastError = data.text || data.error?.code || 'API error'; continue; }
+      addLog(`🟢 Instance responded: ${instance.replace('https://','').split('/')[0]}`, 'data');
+      return data;
+    } catch (e) {
+      lastError = e.message;
+      addLog(`🟡 Instance failed: ${e.message.slice(0,50)}`, 'warn');
+    }
+  }
+  throw new Error(`All instances failed. Last error: ${lastError}`);
+}
 
 // ── State ──
 let activePlatform = 'youtube';
@@ -997,30 +1028,12 @@ async function extractMedia() {
 
   try {
     setProgress(45, 'SENDING EXTRACTION REQUEST…');
-    addLog('🔵 Sending API request to cobalt.tools…', 'info');
+    addLog('🔵 Trying Cobalt public instances…', 'info');
 
-    // ── Cobalt API Call ──
-    const response = await fetch(COBALT_API, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        url: url,
-        vQuality: '1080',
-        filenamePattern: 'classic'
-      })
-    });
+    // ── Cobalt API Call (auto-fallback across instances) ──
+    const data = await cobaltFetch(url, '1080');
 
     setProgress(65, 'PARSING RESPONSE…');
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`HTTP ${response.status}: ${errText.slice(0, 120)}`);
-    }
-
-    const data = await response.json();
 
     setProgress(80, 'VALIDATING MEDIA STREAM…');
     addLog(`🔵 Response received — status: ${data.status}`, 'data');
