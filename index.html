@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS Media Downloader</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --void:#050508; --panel:#0b0d1a; --border:rgba(0,200,255,0.18);
+  --cyan:#00c8ff; --green:#00ff88; --pink:#ff0055; --yellow:#ffd60a;
+  --purple:#8b5cf6; --text:#c8e6f0; --dim:#4a6a7a;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--void);color:var(--text);font-family:'Share Tech Mono',monospace;min-height:100vh;overflow-x:hidden;}
+canvas{position:fixed;inset:0;pointer-events:none;z-index:0;}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:1;}
+.wrap{position:relative;z-index:2;max-width:860px;margin:0 auto;padding:0 16px 80px;}
+
+/* NAV */
+.nav{position:sticky;top:0;z-index:50;background:rgba(5,5,8,0.95);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;padding:10px 16px;}
+.nav-logo{font-family:'Orbitron',monospace;font-size:15px;font-weight:900;color:var(--cyan);letter-spacing:.15em;margin-right:12px;text-shadow:0 0 20px rgba(0,200,255,0.5);}
+.pb{background:transparent;border:1px solid rgba(0,200,255,0.2);border-radius:4px;padding:7px 16px;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.08em;color:var(--dim);cursor:pointer;transition:all .18s;}
+.pb:hover{color:var(--text);border-color:var(--cyan);}
+.pb.on{color:var(--cyan);border-color:var(--cyan);background:rgba(0,200,255,0.1);box-shadow:0 0 14px rgba(0,200,255,0.2);}
+
+/* HEADER */
+.hdr{text-align:center;padding:32px 0 24px;}
+.logo-row{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:8px;}
+h1{font-family:'Orbitron',monospace;font-size:clamp(28px,6vw,56px);font-weight:900;letter-spacing:.12em;background:linear-gradient(135deg,var(--cyan),#00ffee,var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 14px var(--cyan));}
+.tagline{font-size:11px;color:var(--dim);letter-spacing:.28em;text-transform:uppercase;margin-top:4px;}
+.pills{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:12px;margin-top:14px;font-size:11px;color:var(--dim);}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:blink 2s infinite;}
+.pill-free{background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.35);border-radius:20px;padding:4px 14px;color:var(--green);font-size:11px;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
+
+/* PRIVACY BANNER */
+.priv{background:linear-gradient(135deg,rgba(255,0,85,0.12),rgba(139,92,246,0.07));border:1px solid rgba(255,0,85,0.4);border-radius:8px;padding:14px 18px;margin-bottom:22px;display:flex;align-items:center;gap:12px;}
+.priv-icon{font-size:24px;animation:blink 1.4s infinite;flex-shrink:0;}
+.priv-title{font-family:'Orbitron',monospace;font-size:13px;font-weight:700;color:var(--pink);letter-spacing:.06em;margin-bottom:2px;}
+.priv-sub{font-size:10px;color:rgba(255,0,85,0.7);letter-spacing:.04em;}
+
+/* PANEL */
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;position:relative;margin-bottom:22px;}
+.c{position:absolute;width:10px;height:10px;}
+.c.tl{top:0;left:0;border-top:2px solid var(--cyan);border-left:2px solid var(--cyan);}
+.c.tr{top:0;right:0;border-top:2px solid var(--cyan);border-right:2px solid var(--cyan);}
+.c.bl{bottom:0;left:0;border-bottom:2px solid var(--cyan);border-left:2px solid var(--cyan);}
+.c.br{bottom:0;right:0;border-bottom:2px solid var(--cyan);border-right:2px solid var(--cyan);}
+.ph{background:rgba(0,200,255,0.04);border-bottom:1px solid var(--border);padding:11px 18px;font-size:11px;color:var(--cyan);letter-spacing:.1em;display:flex;align-items:center;justify-content:space-between;}
+.pb2{padding:22px;}
+
+/* INPUT */
+.ulabel{font-size:9px;color:var(--cyan);letter-spacing:.35em;display:block;margin-bottom:6px;text-transform:uppercase;}
+#url-in{width:100%;background:rgba(0,5,15,0.9);border:1px solid var(--border);border-radius:6px;padding:14px;font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s;margin-bottom:14px;}
+#url-in:focus{border-color:var(--cyan);box-shadow:0 0 0 1px rgba(0,200,255,.22),inset 0 0 20px rgba(0,200,255,.04);}
+#url-in::placeholder{color:var(--dim);}
+.plat-hint{font-size:11px;color:var(--dim);margin-bottom:18px;}
+.plat-hint span{color:var(--cyan);}
+
+/* ACTION BUTTON */
+#act-btn{display:block;width:100%;padding:16px;background:transparent;border:2px solid var(--cyan);border-radius:6px;font-family:'Orbitron',monospace;font-size:14px;font-weight:700;letter-spacing:.18em;color:var(--cyan);cursor:pointer;transition:all .22s;text-transform:uppercase;position:relative;overflow:hidden;}
+#act-btn:hover{box-shadow:0 0 24px rgba(0,200,255,.5),0 0 60px rgba(0,200,255,.2);}
+#act-btn:active{transform:scale(.98);}
+#act-btn.loading{border-color:var(--yellow);color:var(--yellow);pointer-events:none;animation:bp 1s ease-in-out infinite;}
+#act-btn.success{border-color:var(--green);color:var(--green);box-shadow:0 0 24px rgba(0,255,136,.5);animation:sg 1.5s ease-in-out infinite;font-size:15px;}
+#act-btn.fail{border-color:var(--pink);color:var(--pink);box-shadow:0 0 20px rgba(255,0,85,.4);}
+@keyframes bp{0%,100%{box-shadow:0 0 8px rgba(255,214,10,.3);}50%{box-shadow:0 0 28px rgba(255,214,10,.7);}}
+@keyframes sg{0%,100%{box-shadow:0 0 20px rgba(0,255,136,.4);}50%{box-shadow:0 0 55px rgba(0,255,136,.9),0 0 90px rgba(0,255,136,.3);}}
+
+/* PROGRESS */
+.prog-wrap{display:none;margin-top:16px;}
+.prog-wrap.show{display:block;}
+.prog-top{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);margin-bottom:5px;}
+.prog-track{height:4px;background:rgba(0,10,25,.8);border:1px solid var(--border);border-radius:2px;overflow:hidden;}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--green));width:0%;transition:width .35s ease;position:relative;overflow:hidden;}
+.prog-fill::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);animation:sh 1.2s linear infinite;}
+@keyframes sh{0%{transform:translateX(-100%);}100%{transform:translateX(200%);}}
+
+/* RESULT */
+#result-box{display:none;margin-top:16px;background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.25);border-radius:8px;padding:14px;}
+#result-box.show{display:block;}
+.res-title{font-size:12px;color:var(--green);letter-spacing:.08em;margin-bottom:8px;}
+.res-url{font-size:10px;color:var(--dim);word-break:break-all;background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:4px;padding:8px 10px;}
+
+/* TERMINAL */
+.term-box{background:#020a12;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:22px;}
+.term-bar{background:rgba(0,200,255,.05);border-bottom:1px solid var(--border);padding:8px 14px;display:flex;align-items:center;gap:8px;font-size:10px;color:var(--dim);}
+.td{width:8px;height:8px;border-radius:50%;}
+.td.r{background:#ff2d55;} .td.y{background:var(--yellow);} .td.g{background:var(--green);}
+#term-out{padding:12px;height:170px;overflow-y:auto;font-size:11px;line-height:1.9;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+.ll{display:flex;gap:10px;}
+.lts{color:var(--dim);flex-shrink:0;}
+.li{color:var(--green);} .lw{color:var(--yellow);} .le{color:var(--pink);} .ld{color:var(--cyan);} .ls{color:var(--green);font-weight:bold;}
+
+/* VPN */
+.vpn-wrap{margin-bottom:22px;}
+.sec-lbl{font-size:10px;color:var(--dim);letter-spacing:.4em;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:10px;}
+.sec-lbl::before,.sec-lbl::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);}
+.vpn-outer{background:linear-gradient(135deg,#0d0020,#130028,#080016);border:1px solid rgba(255,0,85,.35);border-radius:10px;padding:26px 22px;position:relative;overflow:hidden;}
+.vpn-outer::after{content:'';position:absolute;top:-50%;right:-5%;width:320px;height:320px;background:radial-gradient(circle,rgba(139,92,246,.12),transparent 70%);pointer-events:none;}
+.vpn-h{font-family:'Orbitron',monospace;font-size:clamp(15px,3vw,22px);font-weight:900;color:#fff;text-shadow:2px 0 var(--pink),-2px 0 var(--cyan);margin-bottom:3px;}
+.vpn-s{font-size:11px;color:rgba(255,0,85,.75);letter-spacing:.22em;text-transform:uppercase;margin-bottom:18px;}
+.vpn-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;position:relative;z-index:1;}
+@media(max-width:520px){.vpn-grid{grid-template-columns:1fr;}}
+.vc{background:rgba(0,0,0,.55);border:1px solid rgba(255,0,85,.2);border-radius:8px;padding:16px;transition:all .2s;}
+.vc:hover{border-color:var(--pink);box-shadow:0 0 20px rgba(255,0,85,.4);transform:translateY(-2px);}
+.vc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.vn{font-family:'Orbitron',monospace;font-size:14px;font-weight:700;color:#fff;}
+.vtag{background:linear-gradient(135deg,var(--pink),var(--purple));border-radius:4px;padding:2px 8px;font-size:9px;color:#fff;letter-spacing:.08em;}
+.vf{list-style:none;margin-bottom:12px;}
+.vf li{font-size:10px;color:rgba(200,230,240,.65);padding:2px 0;display:flex;align-items:center;gap:7px;}
+.vf li::before{content:'▸';color:var(--pink);}
+.vcta{display:block;width:100%;padding:10px;background:linear-gradient(135deg,rgba(255,0,85,.18),rgba(139,92,246,.15));border:1px solid var(--pink);border-radius:5px;font-family:'Orbitron',monospace;font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--pink);text-align:center;text-decoration:none;cursor:pointer;transition:all .2s;}
+.vcta:hover{background:linear-gradient(135deg,rgba(255,0,85,.35),rgba(139,92,246,.25));color:#fff;}
+.vdisc{font-size:9px;color:rgba(74,106,122,.5);text-align:right;margin-top:10px;position:relative;z-index:1;}
+
+/* HISTORY */
+.hist-tbl{width:100%;border-collapse:collapse;font-size:11px;}
+.hist-tbl th{text-align:left;padding:8px 10px;color:var(--dim);font-size:9px;letter-spacing:.3em;text-transform:uppercase;border-bottom:1px solid var(--border);}
+.hist-tbl td{padding:9px 10px;border-bottom:1px solid rgba(0,200,255,.05);color:var(--text);vertical-align:middle;}
+.hist-tbl tr:hover td{background:rgba(0,200,255,.03);}
+.bdg{display:inline-block;padding:2px 8px;border-radius:3px;font-size:9px;text-transform:uppercase;letter-spacing:.07em;}
+.ok{background:rgba(0,255,136,.1);color:var(--green);border:1px solid rgba(0,255,136,.3);}
+.er{background:rgba(255,0,85,.1);color:var(--pink);border:1px solid rgba(255,0,85,.3);}
+
+/* WORKER MODAL */
+#w-modal{position:fixed;inset:0;background:rgba(5,5,8,0.96);z-index:300;display:none;align-items:center;justify-content:center;padding:20px;}
+#w-modal.open{display:flex;}
+.wbox{background:var(--panel);border:1px solid var(--cyan);border-radius:12px;padding:30px;max-width:560px;width:100%;box-shadow:0 0 40px rgba(0,200,255,0.2);}
+.wt{font-family:'Orbitron',monospace;font-size:17px;font-weight:700;color:var(--cyan);margin-bottom:4px;}
+.ws{font-size:10px;color:var(--dim);letter-spacing:.2em;margin-bottom:20px;}
+.wsteps{list-style:none;margin-bottom:18px;}
+.wsteps li{font-size:12px;color:var(--text);padding:7px 0;border-bottom:1px solid rgba(0,200,255,.07);display:flex;gap:10px;align-items:flex-start;line-height:1.5;}
+.wsteps li b{color:var(--cyan);flex-shrink:0;}
+.wsteps a{color:var(--cyan);}
+.w-row{display:flex;gap:10px;margin-bottom:12px;}
+.w-row input{flex:1;background:rgba(0,5,15,.9);border:1px solid var(--border);border-radius:6px;padding:12px 14px;font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text);outline:none;}
+.w-row input:focus{border-color:var(--cyan);}
+.w-row input::placeholder{color:var(--dim);}
+.wsave{background:rgba(0,200,255,.12);border:1px solid var(--cyan);border-radius:6px;padding:0 18px;font-family:'Orbitron',monospace;font-size:11px;font-weight:700;color:var(--cyan);cursor:pointer;letter-spacing:.1em;transition:all .2s;white-space:nowrap;}
+.wsave:hover{box-shadow:0 0 20px rgba(0,200,255,.4);}
+.wnote{font-size:10px;color:var(--dim);}
+.wnote a{color:var(--green);}
+.wskip{display:block;text-align:center;margin-top:14px;font-size:10px;color:var(--dim);cursor:pointer;text-decoration:underline;}
+
+/* RADAR */
+.radar{position:fixed;bottom:16px;right:16px;width:60px;height:60px;z-index:10;opacity:.28;}
+.radar svg{width:100%;height:100%;}
+@keyframes rs{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+.rsw{transform-origin:30px 30px;animation:rs 4s linear infinite;}
+
+/* TOAST */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(70px);background:var(--panel);border:1px solid var(--cyan);border-radius:8px;padding:11px 22px;font-size:12px;color:var(--text);z-index:400;transition:transform .28s;white-space:nowrap;}
+#toast.show{transform:translateX(-50%) translateY(0);}
+
+@media(max-width:580px){.pb2{padding:14px;} #act-btn{font-size:12px;padding:14px;}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<!-- STICKY NAV -->
+<nav class="nav">
+  <span class="nav-logo">⬡ NEXUS</span>
+  <button class="pb on" data-p="YouTube"    onclick="selP(this)">▶ YOUTUBE</button>
+  <button class="pb"    data-p="Instagram"  onclick="selP(this)">◈ INSTAGRAM</button>
+  <button class="pb"    data-p="Facebook"   onclick="selP(this)">⬡ FACEBOOK</button>
+  <button class="pb"    data-p="TikTok"     onclick="selP(this)">♪ TIKTOK</button>
+  <button class="pb"    data-p="Twitter/X"  onclick="selP(this)">✦ TWITTER</button>
+</nav>
+
+<div class="wrap">
+
+  <!-- HEADER -->
+  <div class="hdr">
+    <div class="logo-row">
+      <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+        <circle cx="22" cy="22" r="20" stroke="#00c8ff" stroke-width="1.2" opacity=".4"/>
+        <circle cx="22" cy="22" r="13" stroke="#00c8ff" stroke-width="1" opacity=".65"/>
+        <circle cx="22" cy="22" r="4.5" fill="#00c8ff"/>
+        <line x1="22" y1="2" x2="22" y2="9" stroke="#00c8ff" stroke-width="1.5"/>
+        <line x1="22" y1="35" x2="22" y2="42" stroke="#00c8ff" stroke-width="1.5"/>
+        <line x1="2" y1="22" x2="9" y2="22" stroke="#00c8ff" stroke-width="1.5"/>
+        <line x1="35" y1="22" x2="42" y2="22" stroke="#00c8ff" stroke-width="1.5"/>
+      </svg>
+      <h1>NEXUS</h1>
+    </div>
+    <div class="tagline">Media Extraction Terminal — Powered by Cobalt Engine</div>
+    <div class="pills">
+      <span><span class="dot"></span> SYSTEM ONLINE</span>
+      <span class="pill-free">⚡ FREE UNLIMITED MODE ACTIVE</span>
+      <span id="cobalt-st">COBALT ENGINE: READY</span>
+    </div>
+  </div>
+
+  <!-- PRIVACY BANNER -->
+  <div class="priv">
+    <div class="priv-icon">🔴</div>
+    <div>
+      <div class="priv-title">⚠ YOUR CONNECTION IS EXPOSED!</div>
+      <div class="priv-sub">YOUR IP AND LOCATION ARE VISIBLE TO THIRD-PARTY SERVERS. USE A VPN TO STAY ANONYMOUS.</div>
+    </div>
+  </div>
+
+  <!-- MAIN INPUT PANEL -->
+  <div class="panel">
+    <div class="c tl"></div><div class="c tr"></div>
+    <div class="c bl"></div><div class="c br"></div>
+    <div class="ph">
+      <span>⬡ INPUT STREAM — <span id="plat-lbl">YOUTUBE</span></span>
+      <span id="cobalt-ind" style="color:var(--green);">COBALT ● READY</span>
+    </div>
+    <div class="pb2">
+      <label class="ulabel">TARGET URL</label>
+      <input id="url-in" type="text"
+        placeholder="Paste YouTube, TikTok, Instagram, Facebook or Twitter URL…"
+        autocomplete="off" spellcheck="false">
+
+      <div class="plat-hint">Platform: <span id="plat-hint">YouTube</span> — paste any valid video/reel/post URL above</div>
+
+      <button id="act-btn" onclick="doExtract()">⬡ INITIATE EXTRACTION</button>
+
+      <div class="prog-wrap" id="prog-wrap">
+        <div class="prog-top">
+          <span id="prog-lbl">CONNECTING…</span>
+          <span id="prog-pct">0%</span>
+        </div>
+        <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
+      </div>
+
+      <div id="result-box">
+        <div class="res-title">🟢 EXTRACTION SUCCESS — STREAM ESTABLISHED</div>
+        <div class="res-url" id="res-url">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TERMINAL -->
+  <div class="sec-lbl">System Log</div>
+  <div class="term-box" style="margin-bottom:22px;">
+    <div class="term-bar">
+      <span class="td r"></span><span class="td y"></span><span class="td g"></span>
+      <span style="margin-left:8px;">nexus@cobalt:~$</span>
+      <span style="margin-left:auto;font-size:9px;">COBALT ENGINE v2.0</span>
+    </div>
+    <div id="term-out"></div>
+  </div>
+
+  <!-- VPN SECTION -->
+  <div class="vpn-wrap">
+    <div class="sec-lbl">⚠ Privacy Protection</div>
+    <div class="vpn-outer">
+      <div class="vpn-h">⚡ SHIELD YOUR IDENTITY NOW</div>
+      <div class="vpn-s">// ISP tracking detected — encrypt your stream</div>
+      <div class="vpn-grid">
+        <div class="vc">
+          <div class="vc-top"><div class="vn">NordVPN</div><div class="vtag">#1 RATED</div></div>
+          <ul class="vf">
+            <li>AES-256 military encryption</li>
+            <li>6200+ servers — 111 countries</li>
+            <li>Zero-log policy verified</li>
+            <li>Kill Switch + Double VPN</li>
+          </ul>
+          <!-- REPLACE href="#" WITH YOUR NORDVPN AFFILIATE LINK -->
+          <a class="vcta" href="#" target="_blank" rel="noopener">🛡 ACTIVATE SHIELD — GET NORDVPN</a>
+        </div>
+        <div class="vc">
+          <div class="vc-top"><div class="vn">ExpressVPN</div><div class="vtag">FASTEST</div></div>
+          <ul class="vf">
+            <li>Lightway protocol — ultra fast</li>
+            <li>3000+ servers, 160 locations</li>
+            <li>TrustedServer RAM-only nodes</li>
+            <li>Split tunneling support</li>
+          </ul>
+          <!-- REPLACE href="#" WITH YOUR EXPRESSVPN AFFILIATE LINK -->
+          <a class="vcta" href="#" target="_blank" rel="noopener">🛡 GO DARK — GET EXPRESSVPN</a>
+        </div>
+      </div>
+      <div class="vdisc">* Affiliate links — commission earned per signup. Helps keep NEXUS free.</div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="sec-lbl">Download History</div>
+  <div class="panel" style="overflow:auto;">
+    <table class="hist-tbl">
+      <thead><tr>
+        <th>Platform</th><th>URL</th><th>Status</th><th>Time</th>
+      </tr></thead>
+      <tbody id="hist-body">
+        <tr><td colspan="4" style="text-align:center;color:var(--dim);padding:20px;font-size:11px;">No extractions yet</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div><!-- /wrap -->
+
+<!-- WORKER SETUP MODAL -->
+<div id="w-modal">
+  <div class="wbox">
+    <div class="wt">⚙ SETUP REQUIRED — ONE TIME ONLY</div>
+    <div class="ws">// FREE CLOUDFLARE PROXY — 5 MINUTES</div>
+    <ol class="wsteps">
+      <li><b>1.</b> Go to <a href="https://workers.cloudflare.com" target="_blank">workers.cloudflare.com</a> → Free signup (no card)</li>
+      <li><b>2.</b> Click <b style="color:var(--cyan)">Create Worker</b> → paste <b style="color:var(--green)">worker.js</b> code → Deploy</li>
+      <li><b>3.</b> Copy your URL: <code style="color:var(--yellow)">https://nexus-proxy.yourname.workers.dev</code></li>
+      <li><b>4.</b> Paste below → SAVE → Done! ✅</li>
+    </ol>
+    <div class="w-row">
+      <input id="w-inp" type="text" placeholder="https://nexus-proxy.yourname.workers.dev">
+      <button class="wsave" onclick="saveWorker()">SAVE</button>
+    </div>
+    <div class="wnote">📦 Need <b>worker.js</b>? Download it from your project files (provided separately)</div>
+    <span class="wskip" onclick="closeModal()">Skip for now (extraction won't work without worker)</span>
+  </div>
+</div>
+
+<!-- RADAR -->
+<div class="radar">
+  <svg viewBox="0 0 60 60" fill="none">
+    <circle cx="30" cy="30" r="28" stroke="#00c8ff" stroke-width=".7"/>
+    <circle cx="30" cy="30" r="18" stroke="#00c8ff" stroke-width=".5" opacity=".6"/>
+    <circle cx="30" cy="30" r="9"  stroke="#00c8ff" stroke-width=".4" opacity=".4"/>
+    <line x1="2" y1="30" x2="58" y2="30" stroke="#00c8ff" stroke-width=".4" opacity=".4"/>
+    <line x1="30" y1="2" x2="30" y2="58" stroke="#00c8ff" stroke-width=".4" opacity=".4"/>
+    <g class="rsw">
+      <path d="M30 30 L58 30 A28 28 0 0 0 30 2 Z" fill="url(#rg)" opacity=".4"/>
+    </g>
+    <defs>
+      <radialGradient id="rg" cx="0%" cy="50%">
+        <stop offset="0%" stop-color="#00c8ff" stop-opacity="0"/>
+        <stop offset="100%" stop-color="#00c8ff" stop-opacity=".7"/>
+      </radialGradient>
+    </defs>
+  </svg>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ════════════════════════════════
+   NEXUS — All Logic
+════════════════════════════════ */
+
+// ── Stars ──
+(function(){
+  const cv = document.getElementById('c');
+  const cx = cv.getContext('2d');
+  let st = [];
+  function rsz(){ cv.width=innerWidth; cv.height=innerHeight; st=Array.from({length:180},()=>({x:Math.random()*cv.width,y:Math.random()*cv.height,r:Math.random()*1.3,a:Math.random()*.5+.1,s:Math.random()*.12+.02})); }
+  function drw(){ cx.clearRect(0,0,cv.width,cv.height); st.forEach(s=>{ s.a+=(Math.random()-.5)*.015; s.a=Math.max(.05,Math.min(.75,s.a)); cx.beginPath(); cx.arc(s.x,s.y,s.r,0,Math.PI*2); cx.fillStyle=`rgba(160,220,255,${s.a})`; cx.fill(); s.y+=s.s; if(s.y>cv.height){s.y=0;s.x=Math.random()*cv.width;} }); requestAnimationFrame(drw); }
+  rsz(); drw(); addEventListener('resize',rsz);
+})();
+
+// ── State ──
+let curPlat = 'YouTube';
+let workerURL = localStorage.getItem('nexus_worker') || '';
+let hist = [];
+let logs = [];
+
+// ── Platform Select ──
+function selP(btn) {
+  document.querySelectorAll('.pb').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  curPlat = btn.dataset.p;
+  document.getElementById('plat-lbl').textContent = curPlat.toUpperCase();
+  document.getElementById('plat-hint').textContent = curPlat;
+  log('Platform: ' + curPlat.toUpperCase(), 'd');
+}
+
+// ── Terminal Log ──
+function log(msg, type) {
+  const now = new Date();
+  const ts = [now.getHours(),now.getMinutes(),now.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
+  logs.push({ts, msg, type: type||'i'});
+  if (logs.length > 80) logs.shift();
+  const el = document.getElementById('term-out');
+  const map = {i:'li',w:'lw',e:'le',d:'ld',s:'ls'};
+  el.innerHTML = logs.map(l=>`<div class="ll"><span class="lts">[${l.ts}]</span><span class="${map[l.type]||'li'}">${l.msg}</span></div>`).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── Toast ──
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 3200);
+}
+
+// ── Progress ──
+function setProg(pct, lbl) {
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-pct').textContent = pct + '%';
+  document.getElementById('prog-lbl').textContent = lbl;
+}
+
+// ── Sleep ──
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// ── Worker Modal ──
+function openModal()  { document.getElementById('w-modal').classList.add('open'); }
+function closeModal() { document.getElementById('w-modal').classList.remove('open'); }
+
+function saveWorker() {
+  let v = document.getElementById('w-inp').value.trim();
+  if (!v.startsWith('https://')) { toast('⚠ URL must start with https://'); return; }
+  if (v.endsWith('/')) v = v.slice(0,-1);
+  workerURL = v;
+  localStorage.setItem('nexus_worker', v);
+  closeModal();
+  log('✅ Worker URL saved: ' + v, 's');
+  toast('✓ Worker configured! Try extracting now.');
+}
+
+// ── History ──
+function addHist(url, status) {
+  hist.unshift({ p: curPlat, url: url.length>44 ? url.slice(0,44)+'…' : url, status, t: new Date().toLocaleTimeString() });
+  const tb = document.getElementById('hist-body');
+  tb.innerHTML = hist.slice(0,10).map(h=>`
+    <tr>
+      <td style="color:var(--cyan);font-size:10px;">${h.p}</td>
+      <td style="font-size:10px;">${h.url}</td>
+      <td><span class="bdg ${h.status==='ok'?'ok':'er'}">${h.status==='ok'?'SUCCESS':'FAILED'}</span></td>
+      <td style="font-size:10px;color:var(--dim);">${h.t}</td>
+    </tr>`).join('');
+}
+
+// ── Reset button ──
+function resetBtn() {
+  const b = document.getElementById('act-btn');
+  b.className = '';
+  b.textContent = '⬡ INITIATE EXTRACTION';
+  b.onclick = doExtract;
+}
+
+// ── MAIN EXTRACT ──
+async function doExtract() {
+  const url = document.getElementById('url-in').value.trim();
+
+  if (!url) { toast('⚠ Paste a URL first!'); log('⚠ No URL entered', 'w'); return; }
+  if (!url.startsWith('http')) { toast('⚠ URL must start with https://'); return; }
+
+  if (!workerURL) {
+    log('⚠ Cloudflare worker not configured', 'w');
+    openModal();
+    return;
+  }
+
+  // Reset UI
+  document.getElementById('result-box').classList.remove('show');
+  document.getElementById('prog-wrap').classList.add('show');
+  document.getElementById('cobalt-ind').textContent = 'COBALT ● SCANNING';
+  document.getElementById('cobalt-ind').style.color = 'var(--yellow)';
+  document.getElementById('cobalt-st').textContent = 'COBALT ENGINE: WORKING';
+
+  const btn = document.getElementById('act-btn');
+  btn.className = 'loading';
+  btn.textContent = '⟳ SCANNING TARGET…';
+  btn.onclick = null;
+
+  log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'd');
+  log('📡 NEXUS Media Extraction Terminal initializing...', 'i');
+  log('📡 Scan Target: ' + url.slice(0,65) + (url.length>65?'…':''), 'd');
+  log('🔵 Platform: ' + curPlat.toUpperCase(), 'i');
+  setProg(10, 'INITIALIZING COBALT ENGINE…');
+  await sleep(250);
+
+  setProg(30, 'CONNECTING TO NEXUS PROXY…');
+  log('🔵 Connecting to worker: ' + workerURL.replace('https://','').split('/')[0] + '…', 'i');
+  await sleep(200);
+
+  try {
+    setProg(50, 'SENDING EXTRACTION REQUEST…');
+    log('🔵 Sending request to Cobalt via worker…', 'i');
+
+    const res = await fetch(workerURL + '/api', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, vQuality: '1080', filenamePattern: 'classic' }),
+      signal: AbortSignal.timeout(22000)
+    });
+
+    setProg(75, 'PARSING COBALT RESPONSE…');
+
+    if (!res.ok) throw new Error('Worker returned HTTP ' + res.status);
+
+    const data = await res.json();
+    log('🔵 Response: status = ' + data.status, 'd');
+    await sleep(150);
+
+    let dlURL = null;
+
+    if (data.status === 'stream' || data.status === 'redirect' || data.status === 'url') {
+      dlURL = data.url;
+    } else if (data.status === 'picker' && data.picker && data.picker.length > 0) {
+      dlURL = data.picker[0].url;
+      log('🟡 Picker mode — using first stream', 'w');
+    } else if (data.status === 'error') {
+      throw new Error(data.text || data.error?.code || 'Cobalt returned error');
+    } else {
+      throw new Error('Unknown status: ' + data.status);
+    }
+
+    if (!dlURL) throw new Error('No download URL in response');
+
+    // ── SUCCESS ──
+    setProg(100, 'EXTRACTION COMPLETE ✓');
+    await sleep(200);
+
+    log('🟢 Extraction Success! Media stream pipe established.', 's');
+    log('🟢 Stream URL: ' + dlURL.slice(0,60) + '…', 'd');
+
+    document.getElementById('cobalt-ind').textContent = 'COBALT ● SUCCESS';
+    document.getElementById('cobalt-ind').style.color = 'var(--green)';
+    document.getElementById('cobalt-st').textContent = 'COBALT ENGINE: READY';
+    document.getElementById('res-url').textContent = dlURL;
+    document.getElementById('result-box').classList.add('show');
+
+    // Transform button
+    btn.className = 'success';
+    btn.textContent = '📥 DOWNLOAD NOW — CLICK TO SAVE FILE';
+    btn.onclick = function() {
+      window.open(dlURL, '_blank');
+      log('📥 Download initiated — opening in new tab', 's');
+      toast('✓ Download started!');
+    };
+
+    document.getElementById('prog-wrap').classList.remove('show');
+    addHist(url, 'ok');
+    toast('✓ Ready! Click the green button to download.');
+
+  } catch(err) {
+    setProg(100, 'EXTRACTION FAILED');
+    log('🔴 Extraction Failed: ' + err.message, 'e');
+    log('🔴 Check your URL or worker configuration', 'e');
+
+    document.getElementById('cobalt-ind').textContent = 'COBALT ● ERROR';
+    document.getElementById('cobalt-ind').style.color = 'var(--pink)';
+    document.getElementById('cobalt-st').textContent = 'COBALT ENGINE: READY';
+
+    btn.className = 'fail';
+    btn.textContent = '✕ FAILED — CLICK TO RETRY';
+    btn.onclick = doExtract;
+
+    addHist(url, 'err');
+    toast('✕ Failed — see terminal log');
+
+    setTimeout(() => {
+      document.getElementById('prog-wrap').classList.remove('show');
+      resetBtn();
+      document.getElementById('cobalt-ind').textContent = 'COBALT ● READY';
+      document.getElementById('cobalt-ind').style.color = 'var(--green)';
+    }, 5000);
+  }
+}
+
+// ── Enter key ──
+document.getElementById('url-in').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doExtract();
+});
+
+// ── Init logs ──
+log('📡 NEXUS Media Extraction Terminal initializing...', 'i');
+log('🔵 Cobalt engine ready — no local backend required', 'd');
+log('🟢 FREE UNLIMITED MODE ACTIVE', 's');
+if (workerURL) {
+  log('✅ Worker configured: ' + workerURL.replace('https://','').split('/')[0], 's');
+  log('⚡ System ready — paste URL and extract!', 'w');
+} else {
+  log('⚠ Worker not configured — click INITIATE to setup', 'w');
+  log('⚡ One-time 5-min setup required (Cloudflare free)', 'w');
+}
+</script>
+</body>
+</html>
